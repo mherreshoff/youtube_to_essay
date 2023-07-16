@@ -15,10 +15,10 @@ With that out of the way, install Python 3 if you don't already have it.  See [t
 
 Then you call install the Python libraries the script depends on by running the terminal command: `pip3 install beautifulsoup4 click openai requests youtube-transcript-api`.
 
-# Running
+## Running
 To run the script just run `python3 youtube_to_essay.py $VIDEO $OUTPUT_FILE` where `$VIDEO` is the URL or just the YouTube Video ID (the sequence of letters after `?v=` in the YouTube video URL) you want an essay style transcript for, and `$OUTPUT_FILE` is the name of the file the script will put the essay in.
 
 A typical run on a ten minute video takes about 25 seconds (largely waiting for Open AI's servers to get back to us).  If you leave `MODEL` set to `gpt-4` API costs should be about 20 cents per thousand words.
 
-# Future Work
+## Future Work
 * We could decrease API costs by switching to `gpt-3.5-turbo`.  Unfortunately, it seems to reword things more aggressively, which occasionaly creates awkward seams when the sections of text were merged back together.  Perhaps additional prompt engineering can fix this.
