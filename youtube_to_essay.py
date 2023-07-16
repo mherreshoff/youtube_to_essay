@@ -41,9 +41,10 @@ def clean_transcript_sector(transcript: str) -> str:
     return ask_gpt(MODEL, SYSTEM_PROMPT, transcript)
 
 def merge_similar_strings(s1: str, s1_cutpoint: int, s2: str) -> str:
-    # To find the best spot in `s2` for the transition point, we compute the
-    # minimal list of edits to change s1 into s2, and then we walk through edits
-    # to see where the character at `s1_cutpoint` in `s1` would end up in `s2`.
+    # To find the best cutpoint in `s2` for the transition point, we run
+    # sequence matching and then figure out where the character corresponding to
+    # the one at `s1_cutpoint` in `s1` is in `s2` (erring on the side of
+    # including more if it got deleted.)
     matcher = difflib.SequenceMatcher(None, s1, s2)
 
     s2_cutpoint = None
@@ -81,7 +82,7 @@ def clean_transcript(transcript: str) -> str:
         sectors.append(' '.join(transcript_words[i:i+SECTOR_LENGTH]))
 
     # Next we call the cleanup_transcript_sector function on each sector in parallel:
-    with multiprocessing.Pool() as pool:
+    with multiprocessing.Pool(len(sectors)) as pool:
         cleaned_sectors = pool.map(clean_transcript_sector, sectors)
 
     # Finally we stich the sectors back together, merging the overlapping portions:
