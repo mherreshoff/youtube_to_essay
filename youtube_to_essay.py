@@ -10,6 +10,7 @@ import time
 import bs4
 import click
 import openai
+import openai.openai_object
 import openai.error
 import requests
 import youtube_transcript_api
@@ -31,7 +32,11 @@ def ask_gpt(model: str, system_prompt: str, user_prompt: str) -> str:
     while True:
         try:
             response = openai.ChatCompletion.create(model=model, messages=messages)
-            return response.choices[0]["message"]["content"]
+            if isinstance(response, openai.openai_object.OpenAIObject):
+                return response.choices[0]["message"]["content"]
+            else:
+                print(f"Unexpected response from OpenAI: {response}")
+                time.sleep(30)
         except openai.error.RateLimitError:
             print("Rate limit error, waiting 30 seconds")
             time.sleep(30)
@@ -113,7 +118,7 @@ def get_title_and_author_for_video(video_id: str) -> Tuple[Optional[str], Option
 
     author = None
     author_tag = soup.find('link', {'itemprop': 'name'})
-    if author_tag:
+    if isinstance(author_tag, bs4.element.Tag):
         author = author_tag.attrs.get('content', None)
     return (title, author)
 
