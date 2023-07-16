@@ -1,11 +1,11 @@
 import difflib
+import multiprocessing
 import re
 import os
 import time
 
 import bs4
 import click
-import multiprocessing
 import openai
 import openai.error
 import requests
@@ -14,8 +14,7 @@ import youtube_transcript_api
 SECTOR_LENGTH = 330
 OVERLAP_LENGTH = 30
 
-MODEL = "gpt-4"
-    # Note: 3.5 was hallucinating extra sentences.
+MODEL = "gpt-3.5-turbo"
 SYSTEM_PROMPT = """Clean up the transcript the user gives you, fixing spelling errors and adding punctuation as needed.
 However, do not reword any sentences.
 Include plenty of paragraph breaks.""".replace("\n", " ")
