@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from typing import Optional, Tuple
 import difflib
 import multiprocessing
 import re
@@ -11,7 +12,6 @@ import click
 import openai
 import openai.error
 import requests
-from typing import Optional, Tuple
 import youtube_transcript_api
 
 SECTOR_LENGTH = 330
