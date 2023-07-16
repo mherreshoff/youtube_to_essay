@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import difflib
 import multiprocessing
 import re
@@ -29,7 +31,6 @@ def ask_gpt(model: str, system_prompt: str, user_prompt: str) -> str:
     while True:
         try:
             response = openai.ChatCompletion.create(model=model, messages=messages)
-            print(response)
             return response.choices[0]["message"]["content"]
         except openai.error.RateLimitError:
             print("Rate limit error, waiting 30 seconds")
