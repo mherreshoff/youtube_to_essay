@@ -123,6 +123,7 @@ def get_title_and_author_for_video(video_id: str) -> Tuple[Optional[str], Option
     return (title, author)
 
 def extract_video_id(url_or_id: str) -> str:
+    url_or_id = url_or_id.replace('\\', '')
     m = re.search(r'v=([a-zA-Z0-9_-]+)', url_or_id)
     if m:
         return m.group(1)
