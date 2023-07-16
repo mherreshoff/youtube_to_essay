@@ -81,7 +81,7 @@ def clean_transcript(transcript: str) -> str:
         sector_starts.append(i)
         sectors.append(' '.join(transcript_words[i:i+SECTOR_LENGTH]))
 
-    # Next we call the cleanup_transcript_sector function on each sector in parallel:
+    # Next we cleanup all the sectors in parallel:
     with multiprocessing.Pool(len(sectors)) as pool:
         cleaned_sectors = pool.map(clean_transcript_sector, sectors)
 
@@ -91,7 +91,7 @@ def clean_transcript(transcript: str) -> str:
         overlap_chars = len(' '.join(transcript_words[sector_starts[i]:sector_starts[i] + OVERLAP_LENGTH]))
         cleaned_transcript = merge_sectors(cleaned_transcript, cleaned_sectors[i], overlap_chars)
 
-    # Add a trailing newline if there isn't one already:
+    # Add a trailing newline if there isn't one:
     if not cleaned_transcript.endswith('\n'):
         cleaned_transcript += '\n'
     return cleaned_transcript
@@ -102,9 +102,9 @@ def get_title_and_author_for_video(video_id: str) -> Tuple[Optional[str], Option
     if response.status_code != 200:
         print(f"Couldn't fetch video page to deduce title and author: {video_url}")
         return (None, None)
-
     page_text = requests.get(video_url).text
     soup = bs4.BeautifulSoup(page_text, 'html.parser')
+
     title_tag = soup.find('title')
     title = None
     if title_tag:
@@ -117,15 +117,18 @@ def get_title_and_author_for_video(video_id: str) -> Tuple[Optional[str], Option
         author = author_tag.attrs.get('content', None)
     return (title, author)
 
+def extract_video_id(url_or_id: str) -> str:
+    m = re.search(r'v=([a-zA-Z0-9_-]+)', url_or_id)
+    if m:
+        return m.group(1)
+    else:
+        return url_or_id
+
 @click.command()
 @click.argument('video')
 @click.argument('output_file')
-def main(video, output_file):
-    m = re.search(r'v=([a-zA-Z0-9_-]+)', video)
-    if m:
-        video_id = m.group(1)
-    else:
-        video_id = video
+def main(video: str, output_file: str):
+    video_id = extract_video_id(video)
 
     # First let's extract get the title and author from the video page:
     title, author = get_title_and_author_for_video(video_id)
