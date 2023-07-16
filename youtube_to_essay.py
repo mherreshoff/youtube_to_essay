@@ -10,8 +10,8 @@ import time
 import bs4
 import click
 import openai
-import openai.openai_object
 import openai.error
+import openai.openai_object
 import requests
 import youtube_transcript_api
 
