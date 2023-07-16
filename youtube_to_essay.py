@@ -9,24 +9,18 @@ import click
 import openai
 import openai.error
 import requests
+from typing import Optional, Tuple
 import youtube_transcript_api
 
 SECTOR_LENGTH = 330
 OVERLAP_LENGTH = 30
+DEBUG_MERGES = False
 
-MODEL = "gpt-3.5-turbo"
+MODEL = "gpt-4"
 SYSTEM_PROMPT = """Clean up the transcript the user gives you, fixing spelling errors and adding punctuation as needed.
-However, do not reword any sentences.
-Include plenty of paragraph breaks.""".replace("\n", " ")
+However, do not reword any sentences. Include paragraph breaks where appropriate.""".replace("\n", " ")
 
-def init_openai(key=None):
-    if key is None:
-        key = os.environ.get("OPEN_AI_API_KEY")
-    if key is None:
-        raise ValueError("OPEN_AI_API_KEY environment variable is not set")
-    openai.api_key = key
-
-def ask_gpt(model: str, system_prompt: str, user_prompt: str):
+def ask_gpt(model: str, system_prompt: str, user_prompt: str) -> str:
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
@@ -49,20 +43,24 @@ def merge_similar_strings(s1: str, s1_cutpoint: int, s2: str) -> str:
     # To find the best spot in `s2` for the transition point, we compute the
     # minimal list of edits to change s1 into s2, and then we walk through edits
     # to see where the character at `s1_cutpoint` in `s1` would end up in `s2`.
-    print(f"Merging {s1[:s1_cutpoint]}|{s1[s1_cutpoint:]} ++++ {s2}")
     matcher = difflib.SequenceMatcher(None, s1, s2)
 
     s2_cutpoint = None
-    previous_block_end = 0
+    previous_s1_block_end = 0
+    previous_s2_block_end = 0
     for (i, j, n) in matcher.get_matching_blocks():
-        if previous_block_end <= s1_cutpoint < i:
-            s2_cutpoint = j + (s1_cutpoint - i)
+        if previous_s1_block_end <= s1_cutpoint < i:
+            s2_cutpoint = previous_s2_block_end
             break
         if i <= s1_cutpoint < i + n:
             s2_cutpoint = j + (s1_cutpoint - i)
             break
+        previous_s1_block_end = i + n
+        previous_s2_block_end = j + n
 
-    print(f'Merged: {s1[:s1_cutpoint]}|{s2[s2_cutpoint:]}')
+    if DEBUG_MERGES:
+        print(f'Merged: {s1[:s1_cutpoint]}|{s2[s2_cutpoint:]}')
+
     return s1[:s1_cutpoint] + s2[s2_cutpoint:]
 
 def merge_sectors(sector1, sector2, overlap_chars):
@@ -81,33 +79,41 @@ def clean_transcript(transcript: str) -> str:
         sector_starts.append(i)
         sectors.append(' '.join(transcript_words[i:i+SECTOR_LENGTH]))
 
-    #for i in range(len(sectors)):
-    #    with open('sector_%03d.txt' % i, 'w') as f:
-    #        f.write(sectors[i])
-
     # Next we call the cleanup_transcript_sector function on each sector in parallel:
     with multiprocessing.Pool() as pool:
         cleaned_sectors = pool.map(clean_transcript_sector, sectors)
 
-    #for i in range(len(cleaned_sectors)):
-    #    with open('sector_%03d_cleaned.txt' % i, 'w') as f:
-    #        f.write(cleaned_sectors[i])
-
-    # Hack for testing:
-    #cleaned_sectors = []
-    #for i in range(12):
-    #    with open('cleaned_sector_%03d.txt' % i, 'r') as f:
-    #        cleaned_sectors.append(f.read())
-
-    # Finally we merge the sectors back together:
+    # Finally we stich the sectors back together, merging the overlapping portions:
     cleaned_transcript = cleaned_sectors[0]
     for i in range(1, len(cleaned_sectors)):
         overlap_chars = len(' '.join(transcript_words[sector_starts[i]:sector_starts[i] + OVERLAP_LENGTH]))
         cleaned_transcript = merge_sectors(cleaned_transcript, cleaned_sectors[i], overlap_chars)
 
+    # Add a trailing newline if there isn't one already:
     if not cleaned_transcript.endswith('\n'):
         cleaned_transcript += '\n'
     return cleaned_transcript
+
+def get_title_and_author_for_video(video_id: str) -> Tuple[Optional[str], Optional[str]]:
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+    response = requests.get(video_url)
+    if response.status_code != 200:
+        print(f"Couldn't fetch video page to deduce title and author: {video_url}")
+        return (None, None)
+
+    page_text = requests.get(video_url).text
+    soup = bs4.BeautifulSoup(page_text, 'html.parser')
+    title_tag = soup.find('title')
+    title = None
+    if title_tag:
+        title = title_tag.text
+        title = title.replace(" - YouTube", "")
+
+    author = None
+    author_tag = soup.find('link', {'itemprop': 'name'})
+    if author_tag:
+        author = author_tag.attrs.get('content', None)
+    return (title, author)
 
 @click.command()
 @click.argument('video')
@@ -120,27 +126,11 @@ def main(video, output_file):
         video_id = video
 
     # First let's extract get the title and author from the video page:
-    video_url = f"https://www.youtube.com/watch?v={video_id}"
-    page_text = requests.get(video_url).text
-    soup = bs4.BeautifulSoup(page_text, 'html.parser')
-    title_tag = soup.find('title')
-    title = None
-    if title_tag:
-        title = title_tag.text
-        title = title.replace(" - YouTube", "")
-    print(f"Got title: {title}")
+    title, author = get_title_and_author_for_video(video_id)
 
-    author = None
-    author_tag = soup.find('link', {'itemprop': 'name'})
-    if author_tag:
-        author = author_tag.attrs.get('content', '')
-    print(f"Got author: {author}")
-
+    # Grab the transcript:
     transcript = youtube_transcript_api.YouTubeTranscriptApi.get_transcript(video_id)
     original_text = ' '.join(word for line in transcript for word in line['text'].split())
-
-    with open('original.txt', 'w') as f:
-        f.write(original_text)
 
     cleaned_text = clean_transcript(original_text)
 
