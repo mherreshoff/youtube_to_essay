@@ -17,7 +17,7 @@ SECTOR_LENGTH = 330
 OVERLAP_LENGTH = 30
 DEBUG_MERGES = False
 
-MODEL = "gpt-4"
+MODEL = "gpt-4o"
 SYSTEM_PROMPT = """Clean up the transcript the user gives you, fixing spelling errors and adding punctuation as needed.
 However, do not reword any sentences. Include paragraph breaks where appropriate.""".replace("\n", " ")
 
