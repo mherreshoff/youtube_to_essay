@@ -1,0 +1,5 @@
+beautifulsoup4==4.13.3
+click==8.1.8
+openai==1.63.0
+requests==2.32.3
+youtube-transcript-api==0.6.3
