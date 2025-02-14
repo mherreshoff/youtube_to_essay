@@ -10,8 +10,6 @@ import time
 import bs4
 import click
 import openai
-import openai.error
-import openai.openai_object
 import requests
 import youtube_transcript_api
 
@@ -24,6 +22,7 @@ SYSTEM_PROMPT = """Clean up the transcript the user gives you, fixing spelling e
 However, do not reword any sentences. Include paragraph breaks where appropriate.""".replace("\n", " ")
 
 def ask_gpt(model: str, system_prompt: str, user_prompt: str) -> str:
+    client = openai.OpenAI()
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
@@ -31,13 +30,12 @@ def ask_gpt(model: str, system_prompt: str, user_prompt: str) -> str:
 
     while True:
         try:
-            response = openai.ChatCompletion.create(model=model, messages=messages)
-            if isinstance(response, openai.openai_object.OpenAIObject):
-                return response.choices[0]["message"]["content"]
-            else:
-                print(f"Unexpected response from OpenAI: {response}")
-                time.sleep(30)
-        except openai.error.RateLimitError:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages
+            )
+            return response.choices[0].message.content
+        except openai.RateLimitError:
             print("Rate limit error, waiting 30 seconds")
             time.sleep(30)
 
